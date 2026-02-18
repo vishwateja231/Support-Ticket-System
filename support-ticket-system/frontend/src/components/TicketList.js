@@ -18,6 +18,12 @@ function getPriorityBadgeClass(priority) {
 function TicketList({ refreshToken, onTicketUpdated }) {
   const [tickets, setTickets] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [paginationMeta, setPaginationMeta] = useState({
+    next: null,
+    previous: null,
+    count: 0,
+  });
   const [filters, setFilters] = useState({
     category: '',
     priority: '',
@@ -32,9 +38,14 @@ function TicketList({ refreshToken, onTicketUpdated }) {
     () => ({
       ...filters,
       search: debouncedSearch,
+      page,
     }),
-    [filters, debouncedSearch]
+    [filters, debouncedSearch, page]
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters, debouncedSearch]);
 
   useEffect(() => {
     let isActive = true;
@@ -43,13 +54,28 @@ function TicketList({ refreshToken, onTicketUpdated }) {
       setIsLoading(true);
       try {
         const response = await api.get('/tickets/', { params: queryParams });
-        const payload = Array.isArray(response.data) ? response.data : response.data?.results || [];
-        if (isActive) {
-          setTickets(payload);
+
+        if (!isActive) {
+          return;
         }
+
+        if (Array.isArray(response.data)) {
+          setTickets(response.data);
+          setPaginationMeta({ next: null, previous: null, count: response.data.length });
+          return;
+        }
+
+        const payload = response.data?.results || [];
+        setTickets(payload);
+        setPaginationMeta({
+          next: response.data?.next || null,
+          previous: response.data?.previous || null,
+          count: response.data?.count || 0,
+        });
       } catch (error) {
         if (isActive) {
           setTickets([]);
+          setPaginationMeta({ next: null, previous: null, count: 0 });
         }
       } finally {
         if (isActive) {
@@ -117,22 +143,35 @@ function TicketList({ refreshToken, onTicketUpdated }) {
       {!isLoading && tickets.length === 0 && <p className="muted">No tickets found.</p>}
 
       {!isLoading && tickets.length > 0 && (
-        <ul className="ticket-list">
-          {tickets.map((ticket) => (
-            <li key={ticket.id} className="ticket-item" onClick={() => updateStatus(ticket)}>
-              <h3>{ticket.title}</h3>
-              <p>{truncateDescription(ticket.description)}</p>
-              <div className="meta">
-                <span>Category: {ticket.category}</span>
-                <span>
-                  Priority: <strong className={getPriorityBadgeClass(ticket.priority)}>{ticket.priority}</strong>
-                </span>
-                <span>Status: {ticket.status}</span>
-                <span>{new Date(ticket.created_at).toLocaleString()}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="ticket-list">
+            {tickets.map((ticket) => (
+              <li key={ticket.id} className="ticket-item" onClick={() => updateStatus(ticket)}>
+                <h3>{ticket.title}</h3>
+                <p>{truncateDescription(ticket.description)}</p>
+                <div className="meta">
+                  <span>Category: {ticket.category}</span>
+                  <span>
+                    Priority: <strong className={getPriorityBadgeClass(ticket.priority)}>{ticket.priority}</strong>
+                  </span>
+                  <span>Status: {ticket.status}</span>
+                  <span>{new Date(ticket.created_at).toLocaleString()}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="pagination-controls">
+            <button type="button" onClick={() => setPage((prev) => prev - 1)} disabled={!paginationMeta.previous}>
+              Previous
+            </button>
+            <span className="muted">Page {page}</span>
+            <button type="button" onClick={() => setPage((prev) => prev + 1)} disabled={!paginationMeta.next}>
+              Next
+            </button>
+            <span className="muted">Total: {paginationMeta.count}</span>
+          </div>
+        </>
       )}
     </section>
   );

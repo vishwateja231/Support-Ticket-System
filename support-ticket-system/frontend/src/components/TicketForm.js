@@ -19,6 +19,7 @@ function TicketForm({ onTicketCreated }) {
 
   useEffect(() => {
     if (!debouncedDescription.trim()) {
+      setIsClassifying(false);
       return;
     }
 

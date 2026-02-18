@@ -196,3 +196,12 @@ button:disabled {
   margin: 0;
   color: #15803d;
 }
+
+
+.pagination-controls {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
